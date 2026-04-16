@@ -201,55 +201,17 @@ float* CTransformer::forwardWithoutKVCache(int* tokens, int len, CBackend* backe
     for(unsigned long long layer = 0; layer < config->numLayers; layer++) {
 
         for (int i = 0; i < len; i++) {
-            /** 
-            TODO: 对输入进行 RMS 归一化
-            len: 当前token序列的长度
-
-            void CBackend::rmsnorm(float* y, float* x, float* w, int n) 
-            y: 输出（实参为state->branchActivation）每个token归一化后的结果（通过i，dim计算偏移量）
-            x: 输入 (实参为inputVec)当前层的原始值（通过i，dim计算偏移量）
-            w: 输入 (实参为w.rmsAttWeight）权重参数（通过layer，dim计算偏移量）
-            n: 输入（实参为dim）向量维度
-            */
+            backend->rmsnorm(state->branchActivation + i*dim, inputVec + i*dim, w.rmsAttWeight + layer*dim, dim);
         }
 
         for (int i = 0; i < len; i++) {
-            /** 
-            TODO: Q/K/V 计算
-            len: 当前token序列的长度
-
-            void CBackend::matmul(float* o, float* x, float* w, int n, int d)
-            o(d,1) = w(d,n) × x(n,1)
-            query:
-            o: 输出（实参为state->q）当前token的q向量（通过i，dim计算偏移量）
-            x: 输入（实参为state->branchActivation）归一化后的输出 （通过i，dim计算偏移量）
-            w: 输入（实参为w.wq）Q权重矩阵（通过layer，dim计算偏移量）
-
-            key:
-            o: 输出 （实参为state->k）当前token的k向量（通过i，kvdim计算偏移量）
-            x: 输入 （实参为state->branchActivation）归一化后的输出 （通过i，dim计算偏移量）
-            w: 输入 （实参为w.wk）K权重矩阵（通过layer，dim，kvdim计算偏移量）
-
-            value:
-            o: 输出 （实参为state->v）当前token的v向量（通过i，kvdim计算偏移量）
-            x: 输入 （实参为state->branchActivation）归一化后的输出 （通过i，dim计算偏移量）
-            w: 输入 （实参为w.wv）V权重矩阵（通过layer，dim，kvdim计算偏移量）
-            */
+            backend->matmul(state->q + i*dim, state->branchActivation + i*dim, w.wq + layer*dim*dim, dim, dim);
+            backend->matmul(state->k + i*kvDim, state->branchActivation + i*dim, w.wk + layer*dim*kvDim, dim, kvDim);
+            backend->matmul(state->v + i*kvDim, state->branchActivation + i*dim, w.wv + layer*dim*kvDim, dim, kvDim);
         }
 
         for (int i = 0; i < len; i++) {
-            /** 
-            TODO: 添加位置编码
-            len: 当前token序列的长度
-
-            void CBackend::ropeEncoding(float *q, float *k, int headSize, int position, int dim, int kvDim)
-            q: 输入|输出 （实参为state->q）当前token的q向量（通过i，dim计算偏移量）
-            k：输入|输出 （实参为state->k）当前token的k向量（通过i，kvdim计算偏移量）
-            headSize： （实参为headSize）输入 单个注意力头的维度 
-            position： （实参为i）输入 当前token的位置
-            dim：输入 （实参为dim）q的维度
-            kvdim：输入 （实参为kvDim）k的维度
-            */
+            backend->ropeEncoding(state->q + i*dim, state->k + i*kvDim, headSize, i, dim, kvDim);
         }
 
         for (int i = 0; i < len; i++) {
