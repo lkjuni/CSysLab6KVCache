@@ -9,23 +9,53 @@ CBackend::~CBackend(){
 };
 
 void CBackend::softmax(float* x, int n) {
-    /**
-     * TODO：计算 Softmax
-     **/
+    // 找到最大值（数值稳定性）
+    float max_val = x[0];
+    for (int i = 1; i < n; i++) {
+        if (x[i] > max_val) {
+            max_val = x[i];
+        }
+    }
+
+    // 计算 exp(x[i] - max_val) 并求和
+    float sum = 0.0f;
+    for (int i = 0; i < n; i++) {
+        x[i] = expf(x[i] - max_val);
+        sum += x[i];
+    }
+
+    // 归一化
+    for (int i = 0; i < n; i++) {
+        x[i] /= sum;
+    }
 }
 
 
 void CBackend::matmul(float* o, float* x, float* w, int n, int d) {
-     /**
-     * TODO：实现 向量矩阵乘法
-     **/
+    for (int i = 0; i < d; i++) {
+        float sum = 0.0f;
+        for (int j = 0; j < n; j++) {
+            sum += w[i * n + j] * x[j];
+        }
+        o[i] = sum;
+    }
 }
 
 
 void CBackend::rmsnorm(float* y, float* x, float* w, int n) {
-    /**
-     * TODO：计算 RMSNorm 归一化
-     **/
+    const float eps = 1e-5f;
+    float sum = 0.0f;
+
+    for (int i = 0; i < n; i++) {
+        sum += x[i] * x[i];
+    }
+
+    float mean = sum / n;
+    float scale = 1.0f / sqrtf(mean + eps);
+
+    for (int i = 0; i < n; i++) {
+        y[i] = x[i] * scale * w[i];
+    }
 }
 
 
